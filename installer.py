@@ -85,7 +85,10 @@ class Installer:
         self.__screen.bkgd(' ', curses.color_pair(1))
 
         self.__screen.addstr(1, 2, 'This program needs these packages:')
-        self.__screen.addstr(2, 2, ' '.join(self.__to_install))
+        self.__screen.addstr(
+            2, 2,
+            self.__split_text(self.__to_install, self.__screen.getmaxyx()[1])
+        )
         self.__screen.addstr(7, 2, 'Install packages? (y/n)')
         self.__screen.refresh()
 
@@ -126,6 +129,21 @@ class Installer:
             # pylint: disable=attribute-defined-outside-init
             self.__popen = popen
         self.__is_running = lambda: popen.poll() is None
+
+    def __split_text(self, to_install, width):
+        width -= 5
+        text = to_install[0]
+        line_len = len(to_install[0])
+        for name in to_install[1:]:
+            length = len(name)
+            if line_len + length >= width:
+                text += '\n'
+                line_len = length
+            else:
+                text += ' '
+                line_len += length
+            text += name
+        return text
 
 
 if __name__ == '__main__':
