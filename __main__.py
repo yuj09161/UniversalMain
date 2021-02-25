@@ -1,26 +1,40 @@
-import os
-import locale
 import zipfile
 import tempfile
 import subprocess
 
+from constants import (
+    ENCODING, LINESEP, IS_WINDOWS,
+    PROGRAM_DIR, IS_ZIPFILE, ZIPAPP_FILE
+)
 
-ENCODING = locale.getpreferredencoding()
-PROGRAM_DIR = os.path.dirname(os.path.abspath(__file__))
-LINESEP = os.linesep
 
-# for zipapp support
-IS_ZIPFILE = os.path.isfile(PROGRAM_DIR)
+def _nt_run_cmd(args):
+    return subprocess.run(
+        args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        creationflags=subprocess.CREATE_NO_WINDOW, check=False
+    )
+
+
+def _posix_run_cmd(args):
+    return subprocess.run(
+        args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
+    )
+
+
+if IS_WINDOWS:
+    run_cmd = _nt_run_cmd
+else:
+    run_cmd = _posix_run_cmd
 
 
 def main():
     if IS_ZIPFILE:
-        with zipfile.ZipFile(PROGRAM_DIR) as main_zip:
+        with zipfile.ZipFile(ZIPAPP_FILE) as main_zip:
             with main_zip.open('requirements.txt') as requirements_file:
                 requirements = requirements_file.read().decode('utf-8')
     else:
         with open(
-            PROGRAM_DIR + '/requirements.txt', 'r', encoding='utf-8'
+            PROGRAM_DIR + 'requirements.txt', 'r', encoding='utf-8'
         ) as file:
             requirements = file.read()
     requirements = [
@@ -29,11 +43,7 @@ def main():
         if name
     ]
 
-    installed = subprocess.run(
-        ['pip', 'list'],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        creationflags=subprocess.CREATE_NO_WINDOW, check=False
-    )
+    installed = run_cmd(['pip', 'list'])
     to_install = [
         package for i, package in enumerate(requirements)
         if not package + ' ' in installed.stdout.decode(ENCODING)
@@ -42,7 +52,7 @@ def main():
         # get installer
         if IS_ZIPFILE:
             tmp_dir = tempfile.TemporaryDirectory()
-            with zipfile.ZipFile(PROGRAM_DIR) as main_zip:
+            with zipfile.ZipFile(ZIPAPP_FILE) as main_zip:
                 main_zip.extract('installer.py', tmp_dir.name)
                 [  # pylint: disable=expression-not-assigned
                     main_zip.extract(name, tmp_dir.name)
@@ -51,13 +61,10 @@ def main():
                 ]
             file_path = tmp_dir.name + '/installer.py'
         else:
-            file_path = PROGRAM_DIR + '/installer.py'
+            file_path = PROGRAM_DIR + 'installer.py'
 
         # call installer
-        code = subprocess.run(
-            ['py', file_path, *to_install],
-            creationflags=subprocess.CREATE_NEW_CONSOLE, check=False
-        ).returncode
+        code = run_cmd(['py', file_path, *to_install]).returncode
 
         if IS_ZIPFILE:
             tmp_dir.cleanup()
