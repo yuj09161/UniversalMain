@@ -3,8 +3,7 @@ import tempfile
 import subprocess
 
 from constants import (
-    ENCODING, LINESEP, IS_WINDOWS,
-    PROGRAM_DIR, IS_ZIPFILE, ZIPAPP_FILE
+    ENCODING, IS_WINDOWS, PROGRAM_DIR, IS_ZIPFILE, ZIPAPP_FILE
 )
 
 
@@ -37,16 +36,11 @@ def main():
             PROGRAM_DIR + 'requirements.txt', 'r', encoding='utf-8'
         ) as file:
             requirements = file.read()
-    requirements = [
-        name
-        for name in requirements.replace(LINESEP, '\n').split('\n')
-        if name
-    ]
+    requirements = filter(None, requirements.splitlines())
 
-    installed = run_cmd(['pip', 'list'])
+    installed = run_cmd(['pip', 'list']).stdout.decode(ENCODING)
     to_install = [
-        package for i, package in enumerate(requirements)
-        if not package + ' ' in installed.stdout.decode(ENCODING)
+        package for package in requirements if not package + ' ' in installed
     ]
     if to_install:
         # get installer
@@ -54,17 +48,17 @@ def main():
             tmp_dir = tempfile.TemporaryDirectory()
             with zipfile.ZipFile(ZIPAPP_FILE) as main_zip:
                 main_zip.extract('installer.py', tmp_dir.name)
-                [  # pylint: disable=expression-not-assigned
-                    main_zip.extract(name, tmp_dir.name)
-                    for name in main_zip.namelist()
-                    if name.startswith('wincurse')
-                ]
+                for name in main_zip.namelist():
+                    if name.startswith('wincurse'):
+                        main_zip.extract(name, tmp_dir.name)
             file_path = tmp_dir.name + '/installer.py'
         else:
             file_path = PROGRAM_DIR + 'installer.py'
 
         # call installer
-        code = run_cmd(['py', file_path, *to_install]).returncode
+        code = subprocess.run(
+            ['py', file_path, *to_install], check=False
+        ).returncode
 
         if IS_ZIPFILE:
             tmp_dir.cleanup()

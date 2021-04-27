@@ -51,6 +51,7 @@ class Installer:
         self.__row = 0
         self.__pg_status = 0
         self.__is_running = lambda: False
+        self.__install_output = None
 
     def run(self):
         try:
@@ -67,12 +68,15 @@ class Installer:
             curses.endwin()
 
             if DEBUG:
-                print('stdout')
-                print(self.__popen.stdout.read())
-                print()
-                print('stderr')
-                print(self.__popen.stderr.read())
-                input('Press ENTER to exit')
+                if self.__install_output:
+                    print('stdout')
+                    print(self.__install_output.stdout.read())
+                    print()
+                    print('stderr')
+                    print(self.__install_output.stderr.read())
+                    input('Press ENTER to exit')
+                else:
+                    print('Install is canceled')
 
     def __main(self, screen):
         # pylint: disable=attribute-defined-outside-init
@@ -127,7 +131,7 @@ class Installer:
         )
         if DEBUG:
             # pylint: disable=attribute-defined-outside-init
-            self.__popen = popen
+            self.__install_output = popen
         self.__is_running = lambda: popen.poll() is None
 
     def __split_text(self, to_install, width):
@@ -147,5 +151,10 @@ class Installer:
 
 
 if __name__ == '__main__':
+    if '-d' in sys.argv:
+        DEBUG = True
+        while '-d' in sys.argv:
+            sys.argv.remove('-d')
+
     installer = Installer(sys.argv[1:])
     sys.exit(installer.run())
