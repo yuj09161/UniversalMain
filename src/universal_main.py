@@ -13,10 +13,10 @@ from urllib import request
 from urllib.error import URLError
 from typing import Iterable, Callable, List
 
-from constants import (
+from .universal_constants import (
     ENCODING, IS_WINDOWS, PROGRAM_DIR, IS_ZIPFILE, ZIPAPP_FILE
 )
-from windows_curses_downloader import download_curses
+from .windows_curses_downloader import download_curses
 
 
 Qt = None
@@ -348,5 +348,5 @@ def pyside6_splash_main(main_func: Callable):
         splash.hide()
 
         if return_code == 0:
-            main_func()
+            main_func(app)
     return inner

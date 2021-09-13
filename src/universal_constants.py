@@ -28,7 +28,9 @@ elif PLATFORM == 'darwin':
     DATADIR = USER_DIR + '/Library/Application Support/'
 
 # runtime info
-PROGRAM_DIR = os.path.dirname(os.path.abspath(__file__))
+PROGRAM_DIR = os.path.dirname(
+    os.path.abspath(sys.modules['__main__'].__file__)
+)
 IS_ZIPFILE = os.path.isfile(PROGRAM_DIR)
 if IS_ZIPFILE:
     ZIPAPP_FILE = PROGRAM_DIR

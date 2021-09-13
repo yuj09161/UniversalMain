@@ -1,5 +1,1 @@
-from constants import (  # noqa: F401
-    ENCODING, LINESEP, PATHSEP,
-    USER_DIR, DATADIR, PROGRAM_DIR, IS_ZIPFILE, ZIPAPP_FILE,
-    CPU_CNT, PLATFORM, IS_WINDOWS, IS_LINUX, IS_MACOS
-)
+from .universal_main import main, pyside6_splash_main  # noqa: F401
