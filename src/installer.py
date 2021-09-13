@@ -48,7 +48,6 @@ ENCODING = locale.getpreferredencoding()
 class Installer:
     def __init__(self, to_install):
         self.__to_install = to_install
-        self.__row = 0
         self.__pg_status = 0
         self.__is_running = lambda: False
         self.__install_output = None

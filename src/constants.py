@@ -13,12 +13,18 @@ CPU_CNT = cpu_count()
 PLATFORM = sys.platform
 if PLATFORM == 'win32':
     IS_WINDOWS = True
+    IS_LINUX = False
+    IS_MACOS = False
     DATADIR = os.environ['localappdata'] + PATHSEP
 elif PLATFORM == 'linux':
     IS_WINDOWS = False
+    IS_LINUX = True
+    IS_MACOS = False
     DATADIR = USER_DIR + '/.local/share/'
 elif PLATFORM == 'darwin':
     IS_WINDOWS = False
+    IS_LINUX = False
+    IS_MACOS = True
     DATADIR = USER_DIR + '/Library/Application Support/'
 
 # runtime info
