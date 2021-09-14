@@ -19,6 +19,9 @@ from .universal_constants import (
 from .windows_curses_downloader import download_curses
 
 
+FILE_DIR = os.path.abspath(os.path.dirname(__file__)) + '/'
+
+
 Qt = None
 QIcon = None
 QApplication = None
@@ -157,7 +160,14 @@ def _zipapp_package_installer() -> int:
             return 0
 
         with tempfile.TemporaryDirectory() as tmp_dir:
-            main_zip.extract('installer.py', tmp_dir)
+            installer_path = tmp_dir + '/package_installer.py'
+
+            for name in main_zip.namelist():
+                if name.endswith('package_installer.py'):
+                    extracted_path = main_zip.extract(name, tmp_dir)
+                    break
+            if extracted_path != installer_path:
+                os.rename(extracted_path, installer_path)
 
             if IS_WINDOWS:
                 if _check_network():
@@ -167,7 +177,7 @@ def _zipapp_package_installer() -> int:
                 download_curses(curses_dir)
 
             return subprocess.run([
-                'py', tmp_dir + '/installer.py', *to_install
+                'py', installer_path, *to_install
             ], check=False).returncode
 
 
@@ -189,7 +199,7 @@ def _normal_package_checker() -> int:
 
     if IS_WINDOWS:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            shutil.copy(PROGRAM_DIR + 'installer.py', tmp_dir)
+            shutil.copy(FILE_DIR + 'package_installer.py', tmp_dir)
 
             if _check_network():
                 return 1
@@ -198,11 +208,11 @@ def _normal_package_checker() -> int:
             download_curses(curses_dir)
 
             return subprocess.run([
-                'py', tmp_dir + '/installer.py', *to_install
+                'py', tmp_dir + '/package_installer.py', *to_install
             ], check=False).returncode
 
     return subprocess.run(
-        ['py', PROGRAM_DIR + 'installer.py', *to_install], check=False
+        ['py', FILE_DIR + 'package_installer.py', *to_install], check=False
     ).returncode
 
 
