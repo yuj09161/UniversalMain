@@ -1,1 +1,4 @@
-from .universal_main import main, pyside6_splash_main  # noqa: F401
+from .universal_main import (  # noqa: F401
+    main, pyside6_splash_main,
+    pyside6_splash_pre_main
+)

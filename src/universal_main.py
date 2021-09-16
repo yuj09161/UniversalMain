@@ -309,7 +309,7 @@ def _check_imports() -> bool:
     return False
 
 
-def pyside6_splash_main(main_func: Callable):
+def pyside6_splash_main(main_func: Callable, *, pre_main: Callable = None):
     """
     The decorator that provide package checker, installer & PySide6 splash.
 
@@ -320,6 +320,7 @@ def pyside6_splash_main(main_func: Callable):
             The main function.
             It will be called by this function
             if installer successfully executed.
+            (with instance of QApplication as first argument).
     """
     def inner():
         if _check_py37():
@@ -354,9 +355,36 @@ def pyside6_splash_main(main_func: Callable):
             else:
                 return_code = _normal_package_checker()
 
-        # hide splash
-        splash.hide()
-
         if return_code == 0:
-            main_func(app)
+            if pre_main is not None:
+                res = pre_main()
+                splash.hide()
+                main_func(app, res)
+            else:
+                splash.hide()
+                main_func(app)
+        else:
+            splash.hide()
+
+    return inner
+
+
+def pyside6_splash_pre_main(pre_main: Callable):
+    """
+    The decorator that provide package checker, installer & PySide6 splash.
+
+    Text of splash screen is read from splash.txt at root directory.
+
+    Args:
+        pre_main (Callable):
+            The function that be called before main_func
+                and after package installer.
+            Returns of this function will be passed
+                to main_func as an positional arguments.
+
+    Returns:
+        Callable: The pyside6_splash_main decorator with pre_main arguments.
+    """
+    def inner(main_func: Callable):
+        return pyside6_splash_main(main_func, pre_main=pre_main)
     return inner
