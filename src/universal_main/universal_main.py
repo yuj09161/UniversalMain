@@ -1,22 +1,18 @@
 """The package install automation tool.
 """
 
-from PySide6.QtWidgets import QSplashScreen
-
 import os
 import sys
 import shutil
 import zipfile
 import tempfile
 import subprocess
-from urllib import request
-from urllib.error import URLError
-from typing import Iterable, Callable, List
+from importlib import import_module
+from typing import Iterable, List
 
 from .universal_constants import (
     ENCODING, IS_WINDOWS, PROGRAM_DIR, IS_ZIPFILE, ZIPAPP_FILE
 )
-from .windows_curses_downloader import download_curses
 
 
 FILE_DIR = os.path.abspath(os.path.dirname(__file__)) + '/'
@@ -27,6 +23,8 @@ QIcon = None
 QApplication = None
 QVBoxLayout = None
 QLabel = None
+QSplashScreen = None
+_Splash = None
 
 
 def _check_py37() -> bool:
@@ -44,23 +42,6 @@ def _check_py37() -> bool:
         )
         return True
     return False
-
-
-class _Splash(QSplashScreen):
-    def __init__(self, app, splash_text):
-        # pylint: disable = not-callable
-        super().__init__()
-        x, y = app.screens()[0].availableGeometry().size().toTuple()
-        self.setGeometry(x // 2 - 200, y // 2 - 100, 400, 300)
-        self.setFixedSize(400, 200)
-
-        self.vl = QVBoxLayout(self)
-
-        self.lb = QLabel(self)
-        self.lb.setAlignment(Qt.AlignCenter)
-        self.lb.setText(splash_text)
-        self.lb.setStyleSheet("font-size: 30px")
-        self.vl.addWidget(self.lb)
 
 
 def _nt_run_cmd(args: List[str]) -> subprocess.CompletedProcess:
@@ -124,26 +105,6 @@ def _check_to_install(requirements: Iterable[str]) -> List[str]:
     ]
 
 
-def _check_network() -> bool:
-    """
-    Check network is connected.
-
-    Returns:
-        bool: If network is unconnected, return True. Otherwise, return False.
-    """
-    try:
-        with request.urlopen('https://example.com', timeout=3):
-            pass
-    except URLError:
-        print(
-            'Network is currently unstable.',
-            'Please check network connection and try again.',
-            sep='\n'
-        )
-        return True
-    return False
-
-
 def _zipapp_package_installer() -> int:
     """
     The package checker and installer (Python zipapp version.)
@@ -170,11 +131,19 @@ def _zipapp_package_installer() -> int:
                 os.rename(extracted_path, installer_path)
 
             if IS_WINDOWS:
-                if _check_network():
-                    return 1
                 curses_dir = tmp_dir + '/wincurses'
+                wincurses_dir = os.path.dirname(installer_path) + '/wincurses/'
                 os.mkdir(curses_dir)
-                download_curses(curses_dir)
+                major, minor = sys.version_info[:2]
+                with main_zip.open(
+                    wincurses_dir
+                    + f"wincurses/curses-cp{major}{minor}_"
+                    + '64.whl' if sys.maxsize == 2 ** 63 - 1 else '32.whl'
+                    , 'rb'
+                ) as curses_pyd:
+                    for name in curses_pyd.namelist():
+                        if name.endswith('.pyd'):
+                            curses_pyd.extract(name, curses_dir)
 
             return subprocess.run([
                 'py', installer_path, *to_install
@@ -201,11 +170,17 @@ def _normal_package_checker() -> int:
         with tempfile.TemporaryDirectory() as tmp_dir:
             shutil.copy(FILE_DIR + 'package_installer.py', tmp_dir)
 
-            if _check_network():
-                return 1
             curses_dir = tmp_dir + '/wincurses'
             os.mkdir(curses_dir)
-            download_curses(curses_dir)
+            major, minor = sys.version_info[:2]
+            with zipfile.ZipFile(
+                FILE_DIR
+                + f"wincurses/curses-cp{major}{minor}_"
+                + '64.whl' if sys.maxsize == 2 ** 63 - 1 else '32.whl'
+            ) as curses_pyd:
+                for name in curses_pyd.namelist():
+                    if name.endswith('.pyd'):
+                        curses_pyd.extract(name, curses_dir)
 
             return subprocess.run([
                 'py', tmp_dir + '/package_installer.py', *to_install
@@ -216,51 +191,29 @@ def _normal_package_checker() -> int:
     ).returncode
 
 
-def main(main_func: Callable):
+def main(main_module_name: str, main_func_name: str):
     """
-    The decorator that provide package checker & installer
+    Check & install packages, and run main function.
 
     Args:
-        main_func (Callable):
-            The main function.
+        main_module_name (str):
+            The module that main function exists.
+        main_func_name (str):
+            The name of main function.
             It will be called by this function
             if installer successfully executed.
     """
-    def inner():
-        if _check_py37():
-            return
+    if _check_py37():
+        return
 
-        if IS_ZIPFILE:
-            return_code = _zipapp_package_installer()
-        else:
-            return_code = _normal_package_checker()
+    if IS_ZIPFILE:
+        return_code = _zipapp_package_installer()
+    else:
+        return_code = _normal_package_checker()
 
-        if return_code == 0:
-            main_func()
-    return inner
-
-
-def _splash_text_getter() -> str:
-    """
-    Read text to display at splash screen at splash.txt.
-
-    Returns:
-        str:
-            The text to display.
-            If the file does not exist, return 'No splash.txt'
-    """
-    try:
-        if IS_ZIPFILE:
-            with zipfile.ZipFile(ZIPAPP_FILE) as main_zip:
-                with main_zip.open('splash.txt', 'r') as splash_file:
-                    return splash_file.read().decode('utf-8')
-        else:
-            with open(
-                PROGRAM_DIR + 'splash.txt', 'r', encoding='utf-8'
-            ) as file:
-                return file.read()
-    except (FileNotFoundError, KeyError):
-        return 'No splash.txt'
+    if return_code == 0:
+        main_module = import_module(main_module_name)
+        return getattr(main_module, main_func_name)()
 
 
 def _check_imports() -> bool:
@@ -279,112 +232,121 @@ def _check_imports() -> bool:
     """
     try:
         # pylint: disable = global-statement
+        # pylint: disable = redefined-outer-name
+        # pylint: disable = import-outside-toplevel
         global Qt
         global QIcon
         global QApplication
         global QVBoxLayout
         global QLabel
+        global QSplashScreen
+        global _Splash
         if Qt is None:
-            # pylint: disable = redefined-outer-name
-            # pylint: disable = import-outside-toplevel
             from PySide6.QtCore import Qt
         if QIcon is None:
-            # pylint: disable = redefined-outer-name
-            # pylint: disable = import-outside-toplevel
             from PySide6.QtGui import QIcon
         if QApplication is None:
-            # pylint: disable = redefined-outer-name
-            # pylint: disable = import-outside-toplevel
             from PySide6.QtWidgets import QApplication
         if QVBoxLayout is None:
-            # pylint: disable = redefined-outer-name
-            # pylint: disable = import-outside-toplevel
             from PySide6.QtWidgets import QVBoxLayout
         if QLabel is None:
-            # pylint: disable = redefined-outer-name
-            # pylint: disable = import-outside-toplevel
             from PySide6.QtWidgets import QLabel
+        if QSplashScreen is None:
+            from PySide6.QtWidgets import QSplashScreen
+        if _Splash is None:
+            class _Splash(QSplashScreen):
+                def __init__(self, app, splash_text):
+                    # pylint: disable = not-callable
+                    super().__init__()
+                    x, y = app.screens()[0]\
+                        .availableGeometry().size().toTuple()
+                    self.setGeometry(x // 2 - 200, y // 2 - 100, 400, 300)
+                    self.setFixedSize(400, 200)
+
+                    self.vl = QVBoxLayout(self)
+
+                    self.lb = QLabel(self)
+                    self.lb.setAlignment(Qt.AlignCenter)
+                    self.lb.setText(splash_text)
+                    self.lb.setStyleSheet("font-size: 30px")
+                    self.vl.addWidget(self.lb)
     except ImportError:
         return True
     return False
 
 
-def pyside6_splash_main(main_func: Callable, *, pre_main: Callable = None):
+def pyside6_splash_main(
+    main_module_name: str,
+    main_func_name: str,
+    splash_text: str,
+    *,
+    pre_main_name: str = ''
+):
     """
-    The decorator that provide package checker, installer & PySide6 splash.
+    Splash screen & intall packages.
+    1. Show PySide6 splash
+    2. Check & install packages
+    3. Hide splash
+    4. Then run the main function.
 
     Text of splash screen is read from splash.txt at root directory.
 
     Args:
-        main_func (Callable):
-            The main function.
+        main_module_name (str):
+            The module that main function exists.
+        main_func_name (str):
+            The name of main function.
             It will be called by this function
             if installer successfully executed.
-            (with instance of QApplication as first argument).
+        splash_text (str):
+            The text displayed to splash screen.
+
+    Keyword Args:
+        pre_main_name (str):
+            Function that must be called before main function run.
+            Return value of function will be used
+                as second argument of main function.
     """
-    def inner():
-        if _check_py37():
-            return
+    if _check_py37():
+        return
 
-        # pylint: disable = not-callable
-        if _check_imports():  # When PySide6 is not installed
-            # Check missing packages and install (with PySide6)
-            if IS_ZIPFILE:
-                return_code = _zipapp_package_installer()
-            else:
-                return_code = _normal_package_checker()
+    # pylint: disable = not-callable
+    if _check_imports():  # When PySide6 is not installed
+        # Check missing packages and install (with PySide6)
+        if IS_ZIPFILE:
+            return_code = _zipapp_package_installer()
+        else:
+            return_code = _normal_package_checker()
 
-            # Create Qt application & Show splash
-            app = QApplication()
-            app.setWindowIcon(QIcon(PROGRAM_DIR + 'logo.png'))
+        # Create Qt application & Show splash
+        app = QApplication()
+        app.setWindowIcon(QIcon(PROGRAM_DIR + 'logo.png'))
 
-            splash = _Splash(app, _splash_text_getter())
-            splash.show()
+        splash = _Splash(app, splash_text)
+        splash.show()
 
-        else:  # When PySide6 is installed
-            # Create Qt application & Show splash
-            app = QApplication()
-            app.setWindowIcon(QIcon(PROGRAM_DIR + 'logo.png'))
+    else:  # When PySide6 is installed
+        # Create Qt application & Show splash
+        app = QApplication()
+        app.setWindowIcon(QIcon(PROGRAM_DIR + 'logo.png'))
 
-            splash = _Splash(app, _splash_text_getter())
-            splash.show()
+        splash = _Splash(app, splash_text)
+        splash.show()
 
-            # Check another missing packages
-            if IS_ZIPFILE:
-                return_code = _zipapp_package_installer()
-            else:
-                return_code = _normal_package_checker()
+        # Check another missing packages
+        if IS_ZIPFILE:
+            return_code = _zipapp_package_installer()
+        else:
+            return_code = _normal_package_checker()
 
-        if return_code == 0:
-            if pre_main is not None:
-                res = pre_main()
-                splash.hide()
-                main_func(app, res)
-            else:
-                splash.hide()
-                main_func(app)
+    if return_code == 0:
+        main_module = import_module(main_module_name)
+        if pre_main_name:
+            res = getattr(main_module, pre_main_name)()
+            splash.hide()
+            return getattr(main_module, main_func_name)(app, res)
         else:
             splash.hide()
-
-    return inner
-
-
-def pyside6_splash_pre_main(pre_main: Callable):
-    """
-    The decorator that provide package checker, installer & PySide6 splash.
-
-    Text of splash screen is read from splash.txt at root directory.
-
-    Args:
-        pre_main (Callable):
-            The function that be called before main_func
-                and after package installer.
-            Returns of this function will be passed
-                to main_func as an positional arguments.
-
-    Returns:
-        Callable: The pyside6_splash_main decorator with pre_main arguments.
-    """
-    def inner(main_func: Callable):
-        return pyside6_splash_main(main_func, pre_main=pre_main)
-    return inner
+            return getattr(main_module, main_func_name)(app)
+    else:
+        splash.hide()

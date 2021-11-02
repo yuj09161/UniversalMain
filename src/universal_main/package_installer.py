@@ -13,19 +13,19 @@ DEBUG = False
 # check python version
 major, minor = sys.version_info[:2]
 if (major, minor) < (3, 7):
-    print('This program needs python>=3.7')
+    print('This program needs python >= 3.7')
     input('Press ENTER to exit')
     sys.exit()
 
 # import curses module
 if platform.system() == 'Windows':
-    SRC_DIR = os.path.dirname(os.path.abspath(__file__)) + '/'
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) + '/'
 
     for module_name in ('_curses', '_curses_panel'):
         module_path = (
-            SRC_DIR + 'wincurses/' + module_name + '.cp'
-            + str(major) + str(minor) + '-win'
-            + ('_amd64' if platform.architecture()[0] == '64bit' else '32')
+            SCRIPT_DIR + 'wincurses/'
+            + f'{module_name}.cp{major}{minor}-win'
+            + ('_amd64' if sys.maxsize == 2 ** 63 - 1 else '32')
             + '.pyd'
         )
 
@@ -84,8 +84,9 @@ class Installer:
             int(height * 0.5), int(width * 0.5),
             int(height * 0.25), int(width * 0.25)
         )
-        curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLUE)
-        self.__screen.bkgd(' ', curses.color_pair(1))
+        # Cannot use background color because library has bug.
+        # curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLUE)
+        # self.__screen.bkgd(' ', curses.color_pair(1))
 
         self.__screen.addstr(1, 2, 'This program needs these packages:')
         self.__screen.addstr(
