@@ -105,7 +105,7 @@ def _check_to_install(requirements: Iterable[str]) -> List[str]:
     ]
 
 
-def _zipapp_package_installer() -> int:
+def _zipapp_package_installer(requirements) -> int:
     """
     The package checker and installer (Python zipapp version.)
 
@@ -113,9 +113,7 @@ def _zipapp_package_installer() -> int:
         int: The return code from popened process.
     """
     with zipfile.ZipFile(ZIPAPP_FILE) as main_zip:
-        with main_zip.open('requirements.txt', 'r') as requirements_file:
-            requirements = requirements_file.read().decode('utf-8')
-        to_install = _check_to_install(filter(None, requirements.splitlines()))
+        to_install = _check_to_install(requirements)
 
         if not to_install:
             return 0
@@ -138,8 +136,8 @@ def _zipapp_package_installer() -> int:
                 with main_zip.open(
                     wincurses_dir
                     + f"wincurses/curses-cp{major}{minor}_"
-                    + '64.whl' if sys.maxsize == 2 ** 63 - 1 else '32.whl'
-                    , 'rb'
+                    + '64.whl' if sys.maxsize == 2 ** 63 - 1 else '32.whl',
+                    'rb'
                 ) as curses_pyd:
                     for name in curses_pyd.namelist():
                         if name.endswith('.pyd'):
@@ -150,18 +148,14 @@ def _zipapp_package_installer() -> int:
             ], check=False).returncode
 
 
-def _normal_package_checker() -> int:
+def _normal_package_checker(requirements) -> int:
     """
     The package checker and installer (non-zipapp version.)
 
     Returns:
         int: The return code from popened process.
     """
-    with open(
-        PROGRAM_DIR + 'requirements.txt', 'r', encoding='utf-8'
-    ) as file:
-        requirements = file.read()
-    to_install = _check_to_install(filter(None, requirements.splitlines()))
+    to_install = _check_to_install(requirements)
 
     if not to_install:
         return 0
@@ -191,7 +185,7 @@ def _normal_package_checker() -> int:
     ).returncode
 
 
-def main(main_module_name: str, main_func_name: str):
+def main(main_module_name: str, main_func_name: str, requirements: Iterable):
     """
     Check & install packages, and run main function.
 
@@ -207,9 +201,9 @@ def main(main_module_name: str, main_func_name: str):
         return
 
     if IS_ZIPFILE:
-        return_code = _zipapp_package_installer()
+        return_code = _zipapp_package_installer(requirements)
     else:
-        return_code = _normal_package_checker()
+        return_code = _normal_package_checker(requirements)
 
     if return_code == 0:
         main_module = import_module(main_module_name)
@@ -278,8 +272,8 @@ def _check_imports() -> bool:
 def pyside6_splash_main(
     main_module_name: str,
     main_func_name: str,
+    requirements: Iterable,
     splash_text: str,
-    *,
     pre_main_name: str = ''
 ):
     """
@@ -300,9 +294,7 @@ def pyside6_splash_main(
             if installer successfully executed.
         splash_text (str):
             The text displayed to splash screen.
-
-    Keyword Args:
-        pre_main_name (str):
+        pre_main_name (str, optional):
             Function that must be called before main function run.
             Return value of function will be used
                 as second argument of main function.
@@ -314,9 +306,9 @@ def pyside6_splash_main(
     if _check_imports():  # When PySide6 is not installed
         # Check missing packages and install (with PySide6)
         if IS_ZIPFILE:
-            return_code = _zipapp_package_installer()
+            return_code = _zipapp_package_installer(requirements)
         else:
-            return_code = _normal_package_checker()
+            return_code = _normal_package_checker(requirements)
 
         # Create Qt application & Show splash
         app = QApplication()
@@ -335,9 +327,9 @@ def pyside6_splash_main(
 
         # Check another missing packages
         if IS_ZIPFILE:
-            return_code = _zipapp_package_installer()
+            return_code = _zipapp_package_installer(requirements)
         else:
-            return_code = _normal_package_checker()
+            return_code = _normal_package_checker(requirements)
 
     if return_code == 0:
         main_module = import_module(main_module_name)

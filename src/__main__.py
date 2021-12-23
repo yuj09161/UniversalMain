@@ -25,15 +25,17 @@ def run_main():
         if pre_main_name:
             pyside6_splash_main(
                 config['main_module'], config['main_func'],
-                splash_text, pre_main_name
+                config['requirements'], splash_text, pre_main_name
             )
         else:
             pyside6_splash_main(
                 config['main_module'], config['main_func'],
-                splash_text
+                config['requirements'], splash_text
             )
     else:
-        main(config['main_module'], config['main_func'])
+        main(
+            config['main_module'], config['main_func'], config['requirements']
+        )
 
 
 if __name__ == '__main__':

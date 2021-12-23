@@ -2,5 +2,6 @@
     "main_module": "",
     "main_func": "",
     "splash": false,
-    "pre_main": false
+    "pre_main": false,
+    "requirements": []
 }
