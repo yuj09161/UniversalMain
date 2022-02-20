@@ -10,9 +10,8 @@ import subprocess
 from importlib import import_module
 from typing import Iterable, List
 
-from .universal_constants import (
+from .universal_constants import\
     ENCODING, IS_WINDOWS, PROGRAM_DIR, IS_ZIPFILE, ZIPAPP_FILE
-)
 
 
 FILE_DIR = os.path.abspath(os.path.dirname(__file__)) + '/'
@@ -144,7 +143,7 @@ def _zipapp_package_installer(requirements) -> int:
                             curses_pyd.extract(name, curses_dir)
 
             return subprocess.run([
-                'py', installer_path, *to_install
+                sys.executable, installer_path, *to_install
             ], check=False).returncode
 
 
@@ -177,11 +176,11 @@ def _normal_package_checker(requirements) -> int:
                         curses_pyd.extract(name, curses_dir)
 
             return subprocess.run([
-                'py', tmp_dir + '/package_installer.py', *to_install
+                sys.executable, tmp_dir + '/package_installer.py', *to_install
             ], check=False).returncode
 
     return subprocess.run(
-        ['py', FILE_DIR + 'package_installer.py', *to_install], check=False
+        [sys.executable, FILE_DIR + 'package_installer.py', *to_install], check=False
     ).returncode
 
 

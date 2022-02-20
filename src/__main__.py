@@ -1,9 +1,10 @@
+#!/usr/bin/env python3
+
 import json
 import zipfile
 
-from universal_main.universal_constants import (
+from universal_main.universal_constants import\
     PROGRAM_DIR, IS_ZIPFILE, ZIPAPP_FILE
-)
 from universal_main.universal_main import main, pyside6_splash_main
 
 
