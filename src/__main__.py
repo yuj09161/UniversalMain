@@ -21,21 +21,17 @@ def run_main():
         ) as file:
             config = json.load(file)
     splash_text = config['splash']
-    if splash_text:
-        pre_main_name = config['pre_main']
-        if pre_main_name:
-            pyside6_splash_main(
-                config['main_module'], config['main_func'],
-                config['requirements'], splash_text, pre_main_name
-            )
-        else:
-            pyside6_splash_main(
-                config['main_module'], config['main_func'],
-                config['requirements'], splash_text
-            )
-    else:
+    if splash_text is None:
         main(
-            config['main_module'], config['main_func'], config['requirements']
+            config['main_module'], config['main_func'],
+            config['min_py_ver'], config['requirements']
+        )
+    else:
+        pre_main_name = config['pre_main']
+        pyside6_splash_main(
+            config['main_module'], config['main_func'],
+            config['min_py_ver'], config['requirements'], splash_text,
+            '' if pre_main_name is None else pre_main_name
         )
 
 

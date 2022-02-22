@@ -42,6 +42,7 @@ else:
 # end init
 
 
+IS_WINDOWS = sys.platform == 'win32'
 ENCODING = locale.getpreferredencoding()
 
 
@@ -62,7 +63,8 @@ class Installer:
             return self.__main(screen)
         finally:
             curses.nocbreak()
-            screen.keypad(False)
+            if 'screen' in locals():
+                screen.keypad(False)
             curses.echo()
             curses.endwin()
 
@@ -124,11 +126,18 @@ class Installer:
         self.__screen.refresh()
 
     def __install(self):
-        popen = subprocess.Popen(
-            ['pip', 'install', *self.__to_install],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            creationflags=subprocess.CREATE_NO_WINDOW, encoding=ENCODING
-        )
+        if IS_WINDOWS:
+            popen = subprocess.Popen(
+                [sys.executable, '-m', 'pip', 'install', *self.__to_install],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                creationflags=subprocess.CREATE_NO_WINDOW, encoding=ENCODING
+            )
+        else:
+            popen = subprocess.Popen(
+                [sys.executable, '-m', 'pip', 'install', *self.__to_install],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                encoding=ENCODING
+            )
         if DEBUG:
             # pylint: disable=attribute-defined-outside-init
             self.__install_output = popen
