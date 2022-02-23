@@ -31,7 +31,7 @@ def run_main():
         pyside6_splash_main(
             config['main_module'], config['main_func'],
             config['min_py_ver'], config['requirements'], splash_text,
-            '' if pre_main_name is None else pre_main_name
+            None if pre_main_name is None else pre_main_name
         )
 
 

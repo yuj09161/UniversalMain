@@ -287,7 +287,7 @@ def _check_imports() -> bool:
 def pyside6_splash_main(
     main_module_name: str, main_func_name: str,
     min_py_ver: Iterable, requirements: Iterable,
-    splash_text: str, pre_main_name: str = ''
+    splash_text: str, pre_main_name: str = None
 ):
     """
     Splash screen & intall packages.
