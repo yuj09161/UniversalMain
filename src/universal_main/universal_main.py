@@ -8,7 +8,7 @@ import zipfile
 import tempfile
 import subprocess
 from importlib import import_module
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
 from .universal_constants import\
     ENCODING, IS_WINDOWS, PROGRAM_DIR, IS_ZIPFILE, ZIPAPP_FILE
@@ -19,6 +19,7 @@ FILE_DIR = os.path.abspath(os.path.dirname(__file__)) + '/'
 
 Qt = None
 QIcon = None
+QPixmap = None
 QApplication = None
 QVBoxLayout = None
 QLabel = None
@@ -212,7 +213,7 @@ def main(
             PIP names of required package.
     """
     if _check_py_ver(min_py_ver):
-        return
+        return 1
 
     if IS_ZIPFILE:
         return_code = _zipapp_package_installer(requirements)
@@ -222,38 +223,43 @@ def main(
     if return_code == 0:
         main_module = import_module(main_module_name)
         return getattr(main_module, main_func_name)()
+    return return_code
 
 
 def _check_imports() -> bool:
     """
-    Import some PySide6 classes if the classes not imported.
+    Import some PySide6 classes if the classes is not imported.
 
     Will import these classes:
-    PySide6.QtCore.Qt
-    PySide6.QtGui.QIcon
-    PySide6.QtWidgets.QApplication
-    PySide6.QtWidgets.QVBoxLayout
-    PySide6.QtWidgets.QLabel
+        PySide6.QtCore.Qt
+        PySide6.QtGui.QIcon
+        PySide6.QtWidgets.QApplication
+        PySide6.QtWidgets.QVBoxLayout
+        PySide6.QtWidgets.QLabel
+
+    And will define class `_Splash`.
 
     Returns:
         bool: If import failed, return True. Otherwise, return False.
     """
+    # pylint: disable = global-statement
+    # pylint: disable = redefined-outer-name
+    # pylint: disable = import-outside-toplevel
+    # pylint: disable = global-variable-not-assigned
     try:
-        # pylint: disable = global-statement
-        # pylint: disable = redefined-outer-name
-        # pylint: disable = import-outside-toplevel
-        # pylint: disable = global-variable-not-assigned
         global Qt
         global QIcon
+        global QPixmap
         global QApplication
         global QVBoxLayout
         global QLabel
         global QSplashScreen
-        global _Splash
         if Qt is None:
             from PySide6.QtCore import Qt
         if QIcon is None:
             from PySide6.QtGui import QIcon
+        if QPixmap is None:
+            from PySide6.QtGui import QPixmap
         if QApplication is None:
             from PySide6.QtWidgets import QApplication
         if QVBoxLayout is None:
@@ -262,32 +268,55 @@ def _check_imports() -> bool:
             from PySide6.QtWidgets import QLabel
         if QSplashScreen is None:
             from PySide6.QtWidgets import QSplashScreen
-        if _Splash is None:
-            class _Splash(QSplashScreen):
-                def __init__(self, app, splash_text):
-                    # pylint: disable = not-callable
-                    super().__init__()
-                    x, y = app.screens()[0]\
-                        .availableGeometry().size().toTuple()
-                    self.setGeometry(x // 2 - 200, y // 2 - 100, 400, 300)
-                    self.setFixedSize(400, 200)
-
-                    self.vl = QVBoxLayout(self)
-
-                    self.lb = QLabel(self)
-                    self.lb.setAlignment(Qt.AlignCenter)
-                    self.lb.setText(splash_text)
-                    self.lb.setStyleSheet("font-size: 30px")
-                    self.vl.addWidget(self.lb)
-    except ImportError:
+    except (ModuleNotFoundError, ImportError):
         return True
+
+    global _Splash
+    if _Splash is None:
+        class _Splash(QSplashScreen):
+            def __init__(self, app, splash_text):
+                # pylint: disable = not-callable
+                super().__init__()
+                x, y = app.screens()[0]\
+                    .availableGeometry().size().toTuple()
+                self.setGeometry(x // 2 - 200, y // 2 - 100, 400, 300)
+                self.setFixedSize(400, 200)
+
+                self.vl = QVBoxLayout(self)
+
+                self.lb = QLabel(self)
+                self.lb.setAlignment(Qt.AlignCenter)
+                self.lb.setText(splash_text)
+                self.lb.setStyleSheet("font-size: 30px")
+                self.vl.addWidget(self.lb)
+
     return False
+
+
+def _get_icon() -> QIcon:
+    """Load app icon.
+
+    Icon will be loaded from source directory/zipfile.
+    Accepted name/type are 'logo.png' and 'logo.jpg'.
+    """
+    # pylint: disable = not-callable
+    if not IS_ZIPFILE:
+        return QIcon(PROGRAM_DIR + 'logo.png')
+    with zipfile.ZipFile(ZIPAPP_FILE) as main_zip:
+        names = main_zip.namelist()
+        if 'logo.png' in names:
+            data = main_zip.read('logo.png')
+        elif 'logo.jpg' in names:
+            data = main_zip.read('logo.jpg')
+    pixmap = QPixmap()
+    pixmap.loadFromData(data)
+    return QIcon(pixmap)
 
 
 def pyside6_splash_main(
     main_module_name: str, main_func_name: str,
     min_py_ver: Iterable, requirements: Iterable,
-    splash_text: str, pre_main_name: str = None
+    splash_text: str, pre_main_name: Optional[str] = None
 ):
     """
     Splash screen & intall packages.
@@ -296,7 +325,7 @@ def pyside6_splash_main(
     3. Hide splash
     4. Then run the main function.
 
-    Text of splash screen is read from splash.txt at root directory.
+    Text of splash screen is read from launch.json at root directory.
 
     Args:
         main_module_name (str):
@@ -317,7 +346,7 @@ def pyside6_splash_main(
                 as second argument of main function.
     """
     if _check_py_ver(min_py_ver):
-        return
+        return 1
 
     # pylint: disable = not-callable
     if _check_imports():  # When PySide6 is not installed
@@ -327,19 +356,18 @@ def pyside6_splash_main(
         else:
             return_code = _normal_package_checker(requirements)
         if return_code != 0:
-            sys.exit()
+            return return_code
 
         # Create Qt application & Show splash
         app = QApplication()
-        app.setWindowIcon(QIcon(PROGRAM_DIR + 'logo.png'))
+        app.setWindowIcon(_get_icon())
 
         splash = _Splash(app, splash_text)
         splash.show()
-
     else:  # When PySide6 is installed
         # Create Qt application & Show splash
         app = QApplication()
-        app.setWindowIcon(QIcon(PROGRAM_DIR + 'logo.png'))
+        app.setWindowIcon(_get_icon())
 
         splash = _Splash(app, splash_text)
         splash.show()
@@ -349,15 +377,14 @@ def pyside6_splash_main(
             return_code = _zipapp_package_installer(requirements)
         else:
             return_code = _normal_package_checker(requirements)
+        if return_code != 0:
+            splash.hide()
+            return return_code
 
-    if return_code == 0:
-        main_module = import_module(main_module_name)
-        if pre_main_name is not None:
-            res = getattr(main_module, pre_main_name)()
-            splash.hide()
-            return getattr(main_module, main_func_name)(app, res)
-        else:
-            splash.hide()
-            return getattr(main_module, main_func_name)(app)
-    else:
+    main_module = import_module(main_module_name)
+    if pre_main_name is not None:
+        res = getattr(main_module, pre_main_name)()
         splash.hide()
+        return getattr(main_module, main_func_name)(app, res)
+    splash.hide()
+    return getattr(main_module, main_func_name)(app)

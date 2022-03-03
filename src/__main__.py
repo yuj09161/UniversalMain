@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import sys
 import json
 import zipfile
 
@@ -22,18 +23,17 @@ def run_main():
             config = json.load(file)
     splash_text = config['splash']
     if splash_text is None:
-        main(
+        return main(
             config['main_module'], config['main_func'],
             config['min_py_ver'], config['requirements']
         )
-    else:
-        pre_main_name = config['pre_main']
-        pyside6_splash_main(
-            config['main_module'], config['main_func'],
-            config['min_py_ver'], config['requirements'], splash_text,
-            None if pre_main_name is None else pre_main_name
-        )
+    pre_main_name = config['pre_main']
+    return pyside6_splash_main(
+        config['main_module'], config['main_func'],
+        config['min_py_ver'], config['requirements'],
+        splash_text, pre_main_name
+    )
 
 
 if __name__ == '__main__':
-    run_main()
+    sys.exit(run_main())
