@@ -231,11 +231,13 @@ def _check_imports() -> bool:
     Import some PySide6 classes if the classes is not imported.
 
     Will import these classes:
-        PySide6.QtCore.Qt
-        PySide6.QtGui.QIcon
-        PySide6.QtWidgets.QApplication
-        PySide6.QtWidgets.QVBoxLayout
-        PySide6.QtWidgets.QLabel
+        `PySide6.QtCore.Qt`
+        `PySide6.QtGui.QIcon`
+        `PySide6.QtGui.QPixmap`
+        `PySide6.QtWidgets.QApplication`
+        `PySide6.QtWidgets.QVBoxLayout`
+        `PySide6.QtWidgets.QLabel`
+        `PySide6.QtWidgets.QSplashScreen`
 
     And will define class `_Splash`.
 
@@ -275,7 +277,6 @@ def _check_imports() -> bool:
     if _Splash is None:
         class _Splash(QSplashScreen):
             def __init__(self, app, splash_text):
-                # pylint: disable = not-callable
                 super().__init__()
                 x, y = app.screens()[0]\
                     .availableGeometry().size().toTuple()
@@ -364,6 +365,7 @@ def pyside6_splash_main(
 
         splash = _Splash(app, splash_text)
         splash.show()
+        QApplication.processEvents()
     else:  # When PySide6 is installed
         # Create Qt application & Show splash
         app = QApplication()
@@ -371,6 +373,7 @@ def pyside6_splash_main(
 
         splash = _Splash(app, splash_text)
         splash.show()
+        QApplication.processEvents()
 
         # Check another missing packages
         if IS_ZIPFILE:
@@ -380,10 +383,13 @@ def pyside6_splash_main(
         if return_code != 0:
             splash.hide()
             return return_code
+    QApplication.processEvents()
 
     main_module = import_module(main_module_name)
+    QApplication.processEvents()
     if pre_main_name is not None:
         res = getattr(main_module, pre_main_name)()
+        QApplication.processEvents()
         splash.hide()
         return getattr(main_module, main_func_name)(app, res)
     splash.hide()
