@@ -21,8 +21,7 @@ def run_main():
             PROGRAM_DIR + 'launch.json', 'r', encoding='utf-8'
         ) as file:
             config = json.load(file)
-    splash_text = config['splash']
-    if splash_text is None:
+    if not config['show_splash']:
         return main(
             config['main_module'], config['main_func'],
             config['min_py_ver'], config['requirements']
@@ -31,7 +30,7 @@ def run_main():
     return pyside6_splash_main(
         config['main_module'], config['main_func'],
         config['min_py_ver'], config['requirements'],
-        splash_text, pre_main_name
+        config['program_name'], pre_main_name
     )
 
 

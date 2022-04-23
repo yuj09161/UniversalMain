@@ -1,8 +1,9 @@
 {
-    "main_module": "",
-    "main_func": "",
-    "splash": null,
-    "pre_main": null,
-    "min_py_ver": [3, 7],
-    "requirements": []
+  "program_name": "",
+  "main_module": "",
+  "main_func": "",
+  "show_splash": true,
+  "pre_main": null,
+  "min_py_ver": [3, 7],
+  "requirements": []
 }

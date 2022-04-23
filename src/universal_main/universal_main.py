@@ -8,10 +8,10 @@ import zipfile
 import tempfile
 import subprocess
 from importlib import import_module
-from typing import Iterable, List, Optional, Union
+from typing import Iterable, List, Optional
 
-from .universal_constants import\
-    ENCODING, IS_WINDOWS, PROGRAM_DIR, IS_ZIPFILE, ZIPAPP_FILE
+from .universal_constants import ENCODING, IS_WINDOWS, IS_ZIPFILE, ZIPAPP_FILE
+from .program_informations import get_icon
 
 
 FILE_DIR = os.path.abspath(os.path.dirname(__file__)) + '/'
@@ -294,37 +294,6 @@ def _check_imports() -> bool:
     return False
 
 
-def _get_icon() -> Union[QIcon, None]:
-    """Load app icon.
-
-    Icon will be loaded from source directory/zipfile.
-    Accepted name/type are 'logo.png' and 'logo.jpg'.
-    """
-    # pylint: disable = not-callable
-    if IS_ZIPFILE:
-        with zipfile.ZipFile(ZIPAPP_FILE) as main_zip:
-            names = main_zip.namelist()
-            if 'logo.png' in names:
-                data = main_zip.read('logo.png')
-            elif 'logo.jpg' in names:
-                data = main_zip.read('logo.jpg')
-            else:
-                return None
-    else:
-        names = os.listdir(PROGRAM_DIR)
-        if 'logo.png' in names:
-            with open(PROGRAM_DIR + 'logo.png', 'rb') as file:
-                data = file.read()
-        elif 'logo.jpg' in names:
-            with open(PROGRAM_DIR + 'logo.jpg', 'rb') as file:
-                data = file.read()
-        else:
-            return None
-    pixmap = QPixmap()
-    pixmap.loadFromData(data)
-    return QIcon(pixmap)
-
-
 def pyside6_splash_main(
     main_module_name: str, main_func_name: str,
     min_py_ver: Iterable, requirements: Iterable,
@@ -372,7 +341,7 @@ def pyside6_splash_main(
 
         # Create Qt application & Show splash
         app = QApplication()
-        icon = _get_icon()
+        icon = get_icon()
         if icon is not None:
             app.setWindowIcon(icon)
 
@@ -382,7 +351,7 @@ def pyside6_splash_main(
     else:  # When PySide6 is installed
         # Create Qt application & Show splash
         app = QApplication()
-        icon = _get_icon()
+        icon = get_icon()
         if icon is not None:
             app.setWindowIcon(icon)
 
