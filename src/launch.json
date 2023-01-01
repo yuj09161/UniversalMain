@@ -4,6 +4,6 @@
   "main_func": "",
   "show_splash": true,
   "pre_main": null,
-  "min_py_ver": [3, 7],
+  "min_py_ver": [3, 8],
   "requirements": []
 }
